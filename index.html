@@ -4,7 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Free WebRTC Live Video with Firestore Signaling</title>
+  <link rel="icon" href="data:,">
   <style>
+    /* same styles as before */
     :root {
       --bg: #0b1020; --card:#141a2f; --ink:#e6e9f2; --muted:#98a2b3; --accent:#6ee7ff; --ok:#22c55e; --warn:#f59e0b; --err:#ef4444;
     }
@@ -96,30 +98,22 @@
     </aside>
   </div>
 
-  <!-- ===== Firebase SDKs (Compat for simplicity) ===== -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
   <script>
-    // ===== 1) PASTE YOUR FIREBASE CONFIG HERE =====
-    // Get this from Firebase Console > Project settings > General > Your apps > SDK setup and configuration
     const firebaseConfig = {
-  apiKey: "AIzaSyCu9JoJ-HSq-NUSY6nz-YWoKbfEg0JGkts",
-  authDomain: "chat-290d7.firebaseapp.com",
-  projectId: "chat-290d7",
-  storageBucket: "chat-290d7.firebasestorage.app",
-  messagingSenderId: "463105434554",
-  appId: "1:463105434554:web:683bfc90c0f37edb217383"
-};
+      apiKey: "AIzaSyCu9JoJ-HSq-NUSY6nz-YWoKbfEg0JGkts",
+      authDomain: "chat-290d7.firebaseapp.com",
+      projectId: "chat-290d7",
+      storageBucket: "chat-290d7.firebasestorage.app",
+      messagingSenderId: "463105434554",
+      appId: "1:463105434554:web:683bfc90c0f37edb217383"
+    };
 
-
-    // (Tip) If you already have one from another project, you can paste it. It must have Firestore enabled.
-
-    // ===== 2) Initialize Firebase + Firestore =====
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    // ===== DOM helpers =====
     const $ = (q) => document.querySelector(q);
     const logBox = $('#log');
     const statusBox = $('#status');
@@ -134,17 +128,14 @@
       el.classList.add(ok ? 'ok' : 'warn');
     }
 
-    // ===== WebRTC state =====
-    let pc;                         // RTCPeerConnection
-    let localStream, remoteStream;  // MediaStreams
-    let roomRef;                    // Firestore doc ref
-    let callerCandidates, calleeCandidates; // FS subcollections
+    let pc;
+    let localStream, remoteStream;
+    let roomRef;
+    let callerCandidates, calleeCandidates;
     let isMuted = false, isHidden = false;
 
-    // Public STUN server (free)
     const rtcConfig = { iceServers: [{ urls: [ 'stun:stun.l.google.com:19302' ] }] };
 
-    // ===== UI elements =====
     const btnStart = $('#btnStart');
     const btnCreate = $('#btnCreate');
     const btnJoin = $('#btnJoin');
@@ -155,7 +146,6 @@
     const localVideo = $('#localVideo');
     const remoteVideo = $('#remoteVideo');
 
-    // ===== Start Camera/Mic =====
     btnStart.onclick = async () => {
       try {
         localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -171,46 +161,39 @@
       }
     };
 
-    // ===== Create a room (Caller) =====
     btnCreate.onclick = async () => {
       await ensureMedia();
       pc = new RTCPeerConnection(rtcConfig);
-      trackState();
-      registerLocalTracks();
+      trackState(pc);
+      registerLocalTracks(pc);
 
-      // New room doc
       roomRef = await db.collection('rooms').add({ created: firebase.firestore.FieldValue.serverTimestamp() });
       roomInput.value = roomRef.id;
       log('Created room: ' + roomRef.id);
 
-      // ICE candidate collection for caller
       callerCandidates = roomRef.collection('callerCandidates');
       pc.addEventListener('icecandidate', event => {
         if (event.candidate) callerCandidates.add(event.candidate.toJSON());
       });
 
-      // Remote track handler
-      createRemoteStream();
+      createRemoteStream(pc);
 
-      // Create SDP offer
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
       await roomRef.set({ offer: { type: offer.type, sdp: offer.sdp } }, { merge: true });
       log('Local offer saved to Firestore');
 
-      // Listen for answer
       roomRef.onSnapshot(async snap => {
         const data = snap.data();
-        if (!pc.currentRemoteDescription && data && data.answer){
+        if (pc && !pc.currentRemoteDescription && data && data.answer){
           await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
           log('Remote answer applied');
         }
       });
 
-      // Listen for callee ICE candidates
       roomRef.collection('calleeCandidates').onSnapshot(snapshot => {
         snapshot.docChanges().forEach(change => {
-          if (change.type === 'added') {
+          if (change.type === 'added' && pc) {
             const candidate = new RTCIceCandidate(change.doc.data());
             pc.addIceCandidate(candidate);
           }
@@ -218,7 +201,6 @@
       });
     };
 
-    // ===== Join a room (Callee) =====
     btnJoin.onclick = async () => {
       await ensureMedia();
       const id = roomInput.value.trim();
@@ -235,30 +217,26 @@
       }
 
       pc = new RTCPeerConnection(rtcConfig);
-      trackState();
-      registerLocalTracks();
-      createRemoteStream();
+      trackState(pc);
+      registerLocalTracks(pc);
+      createRemoteStream(pc);
 
-      // ICE candidates (callee)
       calleeCandidates = roomRef.collection('calleeCandidates');
       pc.addEventListener('icecandidate', event => {
         if (event.candidate) calleeCandidates.add(event.candidate.toJSON());
       });
 
-      // Apply remote offer
       const offer = roomSnap.data().offer;
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
 
-      // Create & save answer
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       await roomRef.set({ answer: { type: answer.type, sdp: answer.sdp } }, { merge: true });
       log('Answer created and saved');
 
-      // Listen for caller ICE candidates
       roomRef.collection('callerCandidates').onSnapshot(snapshot => {
         snapshot.docChanges().forEach(change => {
-          if (change.type === 'added') {
+          if (change.type === 'added' && pc) {
             const candidate = new RTCIceCandidate(change.doc.data());
             pc.addIceCandidate(candidate);
           }
@@ -266,7 +244,6 @@
       });
     };
 
-    // ===== Hang up & cleanup =====
     btnHangup.onclick = async () => {
       try { await hangUp(); } catch(e) { log('Hangup error: '+e.message); }
     };
@@ -282,7 +259,6 @@
       if (remoteStream) { remoteStream.getTracks().forEach(t=>t.stop()); remoteStream = null; }
       localVideo.srcObject = null; remoteVideo.srcObject = null;
 
-      // Delete Firestore room & candidates (best‑effort)
       if (roomRef){
         const c1 = roomRef.collection('callerCandidates');
         const c2 = roomRef.collection('calleeCandidates');
@@ -301,18 +277,17 @@
       return batch.commit();
     }
 
-    // ===== Helpers =====
     async function ensureMedia(){
       if (localStream) return;
       await btnStart.onclick();
     }
 
-    function registerLocalTracks(){
+    function registerLocalTracks(pc){
       localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
       log('Local tracks added to RTCPeerConnection');
     }
 
-    function createRemoteStream(){
+    function createRemoteStream(pc){
       remoteStream = new MediaStream();
       remoteVideo.srcObject = remoteStream;
       pc.addEventListener('track', e => {
@@ -320,20 +295,19 @@
       });
     }
 
-    function trackState(){
-      pc.addEventListener('connectionstatechange', () => {
-        const st = pc.connectionState;
+    function trackState(pc){
+      pc.addEventListener('connectionstatechange', (e) => {
+        const st = e.target.connectionState;
         setDot('rtcDot', st === 'connected');
         setStatus('RTC state: ' + st);
       });
       pc.addEventListener('iceconnectionstatechange', () => {
-        log('ICE state: ' + pc.iceConnectionState);
+        if(pc) log('ICE state: ' + pc.iceConnectionState);
       });
     }
 
     function setStatus(txt){ statusBox.textContent = txt; }
 
-    // Mute/Unmute
     btnMute.onclick = () => {
       if (!localStream) return;
       isMuted = !isMuted;
@@ -341,7 +315,6 @@
       btnMute.textContent = isMuted ? 'Unmute' : 'Mute';
     };
 
-    // Hide/Show video
     btnHide.onclick = () => {
       if (!localStream) return;
       isHidden = !isHidden;
@@ -349,10 +322,8 @@
       btnHide.textContent = isHidden ? 'Show' : 'Hide';
     };
 
-    // Warn if leaving without hangup
     window.addEventListener('beforeunload', () => { if (pc) pc.close(); });
 
-    // ===== Firestore test ping (for status pill) =====
     (async function(){
       try {
         await db.enableNetwork();
@@ -360,42 +331,5 @@
       } catch(e){ setDot('dbDot', false); }
     })();
   </script>
-
-  <!-- ===== Setup Notes (read-only) ===== -->
-  <!--
-  HOW TO USE (Free):
-  1) Go to https://console.firebase.google.com → Add project (Spark/free plan).
-  2) In Build → Firestore Database → Create database (Start in test mode for quick demo). 
-     ⚠ Test mode is PUBLIC for 30 days; later switch to secure rules.
-  3) Project settings → General → Your apps → Web → Register app → Copy the config and PASTE above.
-  4) Save this file as index.html and open it on two devices/browsers.
-     - Click Start Camera on both.
-     - On one side click Create Room (it shows a Room ID). Share that ID.
-     - On the other side paste the Room ID and click Join Room.
-  5) You should see your live P2P video. Firestore only carries signaling texts.
-
-  Works on localhost without HTTPS. For remote hosting, use HTTPS (GitHub Pages, Netlify, Vercel — all free).
-
-  Minimal secure Firestore rules (after testing):
-  rules_version = '2';
-  service cloud.firestore {
-    match /databases/{database}/documents {
-      match /rooms/{roomId} {
-        allow create: if true; // or restrict with auth
-        allow read, update, delete: if request.time < resource.data.created + duration.value(1, 'hour');
-        match /{document=**} {
-          allow read, write: if request.time < getAfter(path('/databases/$(database)/documents/rooms/$(roomId)')).data.created + duration.value(1, 'hour');
-        }
-      }
-    }
-  }
-  (For real apps, add proper auth rules.)
-
-  Troubleshooting:
-  - If camera fails: check browser permissions.
-  - If remote video is black: both sides must click Start Camera first.
-  - Corporate/Wi‑Fi NAT may block direct P2P; then add a TURN server (paid) in rtcConfig.
-  - Spark plan quotas are fine for signaling (tiny reads/writes), not for media.
-  -->
 </body>
 </html>
