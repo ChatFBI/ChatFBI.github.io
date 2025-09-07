@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Chat App</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .container {
+            width: 90%;
+            max-width: 400px;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .login-container {
+            padding: 30px;
+        }
+        
+        .chat-container {
+            display: none;
+            flex-direction: column;
+            height: 500px;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        
+        .user-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .user-btn {
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            background: #6e8efb;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .user-btn:hover {
+            background: #5a7df9;
+        }
+        
+        .chat-header {
+            background: #6e8efb;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .messages {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .message {
+            padding: 10px 15px;
+            border-radius: 20px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+        
+        .message.sent {
+            align-self: flex-end;
+            background: #6e8efb;
+            color: white;
+        }
+        
+        .message.received {
+            align-self: flex-start;
+            background: #f1f1f1;
+            color: #333;
+        }
+        
+        .sender {
+            font-size: 12px;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .input-area {
+            display: flex;
+            padding: 10px;
+            border-top: 1px solid #ddd;
+            background: #f9f9f9;
+        }
+        
+        #message-input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            outline: none;
+        }
+        
+        #send-btn {
+            margin-left: 10px;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 20px;
+            background: #6e8efb;
+            color: white;
+            cursor: pointer;
+        }
+        
+        #logout-btn {
+            margin-top: 15px;
+            padding: 8px;
+            border: none;
+            border-radius: 5px;
+            background: #ff4757;
+            color: white;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Login Section -->
+        <div class="login-container" id="login-section">
+            <h1>Choose User</h1>
+            <div class="user-list">
+                <button class="user-btn" data-user="admin">Login as Admin</button>
+                <button class="user-btn" data-user="shreyas">Login as Shreyas</button>
+                <button class="user-btn" data-user="adi">Login as Adi</button>
+            </div>
+        </div>
+        
+        <!-- Chat Section -->
+        <div class="chat-container" id="chat-section">
+            <div class="chat-header">
+                <span id="current-user">User</span>
+            </div>
+            <div class="messages" id="messages-container"></div>
+            <div class="input-area">
+                <input type="text" id="message-input" placeholder="Type your message...">
+                <button id="send-btn">Send</button>
+            </div>
+            <button id="logout-btn">Logout</button>
+        </div>
+    </div>
+
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCu9JoJ-HSq-NUSY6nz-YWoKbfEg0JGkts",
+            authDomain: "chat-290d7.firebaseapp.com",
+            projectId: "chat-290d7",
+            storageBucket: "chat-290d7.firebasestorage.app",
+            messagingSenderId: "463105434554",
+            appId: "1:463105434554:web:683bfc90c0f37edb217383"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // DOM elements
+        const loginSection = document.getElementById('login-section');
+        const chatSection = document.getElementById('chat-section');
+        const userButtons = document.querySelectorAll('.user-btn');
+        const currentUserElement = document.getElementById('current-user');
+        const messagesContainer = document.getElementById('messages-container');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-btn');
+        const logoutButton = document.getElementById('logout-btn');
+
+        let currentUser = null;
+
+        // Login function
+        userButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                currentUser = button.getAttribute('data-user');
+                currentUserElement.textContent = currentUser;
+                loginSection.style.display = 'none';
+                chatSection.style.display = 'flex';
+                loadMessages();
+            });
+        });
+
+        // Logout function
+        logoutButton.addEventListener('click', () => {
+            currentUser = null;
+            loginSection.style.display = 'block';
+            chatSection.style.display = 'none';
+            messagesContainer.innerHTML = '';
+        });
+
+        // Send message function
+        sendButton.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        function sendMessage() {
+            const messageText = messageInput.value.trim();
+            if (messageText === '') return;
+
+            // Add message to Firestore
+            db.collection('messages').add({
+                text: messageText,
+                user: currentUser,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            })
+            .then(() => {
+                messageInput.value = '';
+            })
+            .catch((error) => {
+                console.error("Error sending message: ", error);
+            });
+        }
+
+        // Load messages from Firestore
+        function loadMessages() {
+            db.collection('messages')
+                .orderBy('timestamp', 'asc')
+                .onSnapshot((querySnapshot) => {
+                    messagesContainer.innerHTML = '';
+                    querySnapshot.forEach((doc) => {
+                        const message = doc.data();
+                        displayMessage(message);
+                    });
+                    // Scroll to bottom
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                });
+        }
+
+        // Display message in chat
+        function displayMessage(message) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message');
+            
+            const senderElement = document.createElement('div');
+            senderElement.classList.add('sender');
+            senderElement.textContent = message.user;
+            
+            const textElement = document.createElement('div');
+            textElement.textContent = message.text;
+            
+            messageElement.appendChild(senderElement);
+            messageElement.appendChild(textElement);
+            
+            if (message.user === currentUser) {
+                messageElement.classList.add('sent');
+            } else {
+                messageElement.classList.add('received');
+            }
+            
+            messagesContainer.appendChild(messageElement);
+        }
+    </script>
+</body>
+</html>d
