@@ -1,287 +1,401 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple Chat App</title>
-    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        
-        body {
-            background: linear-gradient(135deg, #6e8efb, #a777e3);
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        
-        .container {
-            width: 90%;
-            max-width: 400px;
-            background: white;
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-        }
-        
-        .login-container {
-            padding: 30px;
-        }
-        
-        .chat-container {
-            display: none;
-            flex-direction: column;
-            height: 500px;
-        }
-        
-        h1 {
-            text-align: center;
-            margin-bottom: 20px;
-            color: #333;
-        }
-        
-        .user-list {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        
-        .user-btn {
-            padding: 12px;
-            border: none;
-            border-radius: 5px;
-            background: #6e8efb;
-            color: white;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
-        
-        .user-btn:hover {
-            background: #5a7df9;
-        }
-        
-        .chat-header {
-            background: #6e8efb;
-            color: white;
-            padding: 15px;
-            text-align: center;
-            font-weight: bold;
-        }
-        
-        .messages {
-            flex: 1;
-            padding: 15px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        
-        .message {
-            padding: 10px 15px;
-            border-radius: 20px;
-            max-width: 80%;
-            word-wrap: break-word;
-        }
-        
-        .message.sent {
-            align-self: flex-end;
-            background: #6e8efb;
-            color: white;
-        }
-        
-        .message.received {
-            align-self: flex-start;
-            background: #f1f1f1;
-            color: #333;
-        }
-        
-        .sender {
-            font-size: 12px;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-        
-        .input-area {
-            display: flex;
-            padding: 10px;
-            border-top: 1px solid #ddd;
-            background: #f9f9f9;
-        }
-        
-        #message-input {
-            flex: 1;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 20px;
-            outline: none;
-        }
-        
-        #send-btn {
-            margin-left: 10px;
-            padding: 10px 15px;
-            border: none;
-            border-radius: 20px;
-            background: #6e8efb;
-            color: white;
-            cursor: pointer;
-        }
-        
-        #logout-btn {
-            margin-top: 15px;
-            padding: 8px;
-            border: none;
-            border-radius: 5px;
-            background: #ff4757;
-            color: white;
-            cursor: pointer;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Free WebRTC Live Video with Firestore Signaling</title>
+  <style>
+    :root {
+      --bg: #0b1020; --card:#141a2f; --ink:#e6e9f2; --muted:#98a2b3; --accent:#6ee7ff; --ok:#22c55e; --warn:#f59e0b; --err:#ef4444;
+    }
+    *{box-sizing:border-box;}
+    body{margin:0;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:linear-gradient(180deg,#0b1020,#0e1630 40%,#0b1020);color:var(--ink);min-height:100svh;}
+    header{padding:18px 20px;border-bottom:1px solid #24304d;background:rgba(20,26,47,.7);backdrop-filter:saturate(120%) blur(6px);position:sticky;top:0;z-index:5}
+    .wrap{max-width:1100px;margin:0 auto;padding:18px;}
+    .grid{display:grid;gap:16px}
+    .cols{grid-template-columns:1.2fr .8fr}
+    .card{background:var(--card);border:1px solid #1f2744;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+    .pad{padding:16px}
+    h1{margin:0;font-size:clamp(18px,2.2vw,24px);font-weight:700;letter-spacing:.2px}
+    h2{margin:0 0 10px;font-size:16px;color:var(--muted);font-weight:600}
+    label{display:block;margin:12px 0 6px;font-size:13px;color:var(--muted)}
+    input,button,textarea{font:inherit}
+    input[type=text]{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2b365a;background:#0e1429;color:var(--ink)}
+    button{cursor:pointer;border:1px solid #2b365a;background:#0e1429;color:var(--ink);padding:10px 14px;border-radius:12px;transition:.15s}
+    button:hover{border-color:#3a4979;transform:translateY(-1px)}
+    button.primary{background:linear-gradient(180deg,#0ea5e9,#2563eb);border-color:transparent}
+    button.danger{background:linear-gradient(180deg,#ef4444,#b91c1c);border-color:transparent}
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    .pill{display:inline-flex;align-items:center;gap:8px;padding:8px 10px;border-radius:999px;background:#0e1429;border:1px solid #233058}
+    .pill .dot{width:9px;height:9px;border-radius:999px;background:#64748b}
+    .dot.ok{background:var(--ok)}
+    .dot.warn{background:var(--warn)}
+    .dot.err{background:var(--err)}
+    .videos{display:grid;gap:12px;grid-template-columns:1fr 1fr}
+    video{width:100%;background:#000;border-radius:14px;border:1px solid #1a2240;aspect-ratio:16/9}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:12px;white-space:pre-wrap;word-break:break-word}
+    .muted{color:var(--muted)}
+    .small{font-size:12px}
+  </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Login Section -->
-        <div class="login-container" id="login-section">
-            <h1>Choose User</h1>
-            <div class="user-list">
-                <button class="user-btn" data-user="admin">Login as Admin</button>
-                <button class="user-btn" data-user="shreyas">Login as Shreyas</button>
-                <button class="user-btn" data-user="adi">Login as Adi</button>
-            </div>
-        </div>
-        
-        <!-- Chat Section -->
-        <div class="chat-container" id="chat-section">
-            <div class="chat-header">
-                <span id="current-user">User</span>
-            </div>
-            <div class="messages" id="messages-container"></div>
-            <div class="input-area">
-                <input type="text" id="message-input" placeholder="Type your message...">
-                <button id="send-btn">Send</button>
-            </div>
-            <button id="logout-btn">Logout</button>
-        </div>
+  <header>
+    <div class="wrap row" style="justify-content:space-between;align-items:center">
+      <h1>WebRTC Live Video (Peer‑to‑Peer) — Free Signaling via Firebase Firestore</h1>
+      <div class="row small muted">
+        <span class="pill"><span class="dot" id="camDot"></span> Camera</span>
+        <span class="pill"><span class="dot" id="micDot"></span> Mic</span>
+        <span class="pill"><span class="dot" id="rtcDot"></span> WebRTC</span>
+        <span class="pill"><span class="dot" id="dbDot"></span> Firestore</span>
+      </div>
     </div>
+  </header>
 
-    <script>
-        // Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyCu9JoJ-HSq-NUSY6nz-YWoKbfEg0JGkts",
-            authDomain: "chat-290d7.firebaseapp.com",
-            projectId: "chat-290d7",
-            storageBucket: "chat-290d7.firebasestorage.app",
-            messagingSenderId: "463105434554",
-            appId: "1:463105434554:web:683bfc90c0f37edb217383"
-        };
+  <div class="wrap grid cols">
+    <section class="card pad">
+      <h2>Video</h2>
+      <div class="videos">
+        <div>
+          <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:6px">
+            <strong>Local</strong>
+            <div class="row">
+              <button id="btnStart" class="primary">1) Start Camera</button>
+              <button id="btnMute">Mute</button>
+              <button id="btnHide">Hide</button>
+            </div>
+          </div>
+          <video id="localVideo" playsinline autoplay muted></video>
+        </div>
+        <div>
+          <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:6px">
+            <strong>Remote</strong>
+            <div class="row">
+              <button id="btnHangup" class="danger">Hang Up</button>
+            </div>
+          </div>
+          <video id="remoteVideo" playsinline autoplay></video>
+        </div>
+      </div>
+    </section>
 
-        // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
+    <aside class="card pad">
+      <h2>Connect</h2>
+      <label>Room ID</label>
+      <div class="row">
+        <input type="text" id="roomId" placeholder="auto‑generated when you Create" />
+        <button id="btnCreate" class="primary">2) Create Room</button>
+        <button id="btnJoin" class="primary">Join Room</button>
+      </div>
+      <p class="small muted">Share the Room ID with the other person. One clicks <em>Create</em>, the other clicks <em>Join</em>.</p>
 
-        // DOM elements
-        const loginSection = document.getElementById('login-section');
-        const chatSection = document.getElementById('chat-section');
-        const userButtons = document.querySelectorAll('.user-btn');
-        const currentUserElement = document.getElementById('current-user');
-        const messagesContainer = document.getElementById('messages-container');
-        const messageInput = document.getElementById('message-input');
-        const sendButton = document.getElementById('send-btn');
-        const logoutButton = document.getElementById('logout-btn');
+      <h2 style="margin-top:14px">Logs</h2>
+      <div id="log" class="mono" style="background:#0e1429;border:1px solid #223059;border-radius:12px;padding:10px;height:260px;overflow:auto"></div>
 
-        let currentUser = null;
+      <h2 style="margin-top:14px">Status</h2>
+      <div class="mono small muted" id="status"></div>
+    </aside>
+  </div>
 
-        // Login function
-        userButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                currentUser = button.getAttribute('data-user');
-                currentUserElement.textContent = currentUser;
-                loginSection.style.display = 'none';
-                chatSection.style.display = 'flex';
-                loadMessages();
-            });
-        });
+  <!-- ===== Firebase SDKs (Compat for simplicity) ===== -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
-        // Logout function
-        logoutButton.addEventListener('click', () => {
-            currentUser = null;
-            loginSection.style.display = 'block';
-            chatSection.style.display = 'none';
-            messagesContainer.innerHTML = '';
-        });
+  <script>
+    // ===== 1) PASTE YOUR FIREBASE CONFIG HERE =====
+    // Get this from Firebase Console > Project settings > General > Your apps > SDK setup and configuration
+    const firebaseConfig = {
+  apiKey: "AIzaSyCu9JoJ-HSq-NUSY6nz-YWoKbfEg0JGkts",
+  authDomain: "chat-290d7.firebaseapp.com",
+  projectId: "chat-290d7",
+  storageBucket: "chat-290d7.firebasestorage.app",
+  messagingSenderId: "463105434554",
+  appId: "1:463105434554:web:683bfc90c0f37edb217383"
+};
 
-        // Send message function
-        sendButton.addEventListener('click', sendMessage);
-        messageInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                sendMessage();
-            }
-        });
 
-        function sendMessage() {
-            const messageText = messageInput.value.trim();
-            if (messageText === '') return;
+    // (Tip) If you already have one from another project, you can paste it. It must have Firestore enabled.
 
-            // Add message to Firestore
-            db.collection('messages').add({
-                text: messageText,
-                user: currentUser,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp()
-            })
-            .then(() => {
-                messageInput.value = '';
-            })
-            .catch((error) => {
-                console.error("Error sending message: ", error);
-            });
+    // ===== 2) Initialize Firebase + Firestore =====
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // ===== DOM helpers =====
+    const $ = (q) => document.querySelector(q);
+    const logBox = $('#log');
+    const statusBox = $('#status');
+    function log(msg){
+      const time = new Date().toLocaleTimeString();
+      logBox.textContent += `[${time}] ${msg}\n`;
+      logBox.scrollTop = logBox.scrollHeight;
+    }
+    function setDot(id, ok){
+      const el = document.getElementById(id);
+      el.classList.remove('ok','warn','err');
+      el.classList.add(ok ? 'ok' : 'warn');
+    }
+
+    // ===== WebRTC state =====
+    let pc;                         // RTCPeerConnection
+    let localStream, remoteStream;  // MediaStreams
+    let roomRef;                    // Firestore doc ref
+    let callerCandidates, calleeCandidates; // FS subcollections
+    let isMuted = false, isHidden = false;
+
+    // Public STUN server (free)
+    const rtcConfig = { iceServers: [{ urls: [ 'stun:stun.l.google.com:19302' ] }] };
+
+    // ===== UI elements =====
+    const btnStart = $('#btnStart');
+    const btnCreate = $('#btnCreate');
+    const btnJoin = $('#btnJoin');
+    const btnHangup = $('#btnHangup');
+    const btnMute = $('#btnMute');
+    const btnHide = $('#btnHide');
+    const roomInput = $('#roomId');
+    const localVideo = $('#localVideo');
+    const remoteVideo = $('#remoteVideo');
+
+    // ===== Start Camera/Mic =====
+    btnStart.onclick = async () => {
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        $('#camDot').classList.add('ok');
+        $('#micDot').classList.add('ok');
+        localVideo.srcObject = localStream;
+        log('Got local media stream');
+      } catch (err){
+        $('#camDot').classList.add('err');
+        $('#micDot').classList.add('err');
+        log('Error getting media: ' + err.message);
+        alert('Could not access camera/microphone: ' + err.message);
+      }
+    };
+
+    // ===== Create a room (Caller) =====
+    btnCreate.onclick = async () => {
+      await ensureMedia();
+      pc = new RTCPeerConnection(rtcConfig);
+      trackState();
+      registerLocalTracks();
+
+      // New room doc
+      roomRef = await db.collection('rooms').add({ created: firebase.firestore.FieldValue.serverTimestamp() });
+      roomInput.value = roomRef.id;
+      log('Created room: ' + roomRef.id);
+
+      // ICE candidate collection for caller
+      callerCandidates = roomRef.collection('callerCandidates');
+      pc.addEventListener('icecandidate', event => {
+        if (event.candidate) callerCandidates.add(event.candidate.toJSON());
+      });
+
+      // Remote track handler
+      createRemoteStream();
+
+      // Create SDP offer
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      await roomRef.set({ offer: { type: offer.type, sdp: offer.sdp } }, { merge: true });
+      log('Local offer saved to Firestore');
+
+      // Listen for answer
+      roomRef.onSnapshot(async snap => {
+        const data = snap.data();
+        if (!pc.currentRemoteDescription && data && data.answer){
+          await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+          log('Remote answer applied');
         }
+      });
 
-        // Load messages from Firestore
-        function loadMessages() {
-            db.collection('messages')
-                .orderBy('timestamp', 'asc')
-                .onSnapshot((querySnapshot) => {
-                    messagesContainer.innerHTML = '';
-                    querySnapshot.forEach((doc) => {
-                        const message = doc.data();
-                        displayMessage(message);
-                    });
-                    // Scroll to bottom
-                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-                });
-        }
+      // Listen for callee ICE candidates
+      roomRef.collection('calleeCandidates').onSnapshot(snapshot => {
+        snapshot.docChanges().forEach(change => {
+          if (change.type === 'added') {
+            const candidate = new RTCIceCandidate(change.doc.data());
+            pc.addIceCandidate(candidate);
+          }
+        });
+      });
+    };
 
-        // Display message in chat
-        function displayMessage(message) {
-            const messageElement = document.createElement('div');
-            messageElement.classList.add('message');
-            
-            const senderElement = document.createElement('div');
-            senderElement.classList.add('sender');
-            senderElement.textContent = message.user;
-            
-            const textElement = document.createElement('div');
-            textElement.textContent = message.text;
-            
-            messageElement.appendChild(senderElement);
-            messageElement.appendChild(textElement);
-            
-            if (message.user === currentUser) {
-                messageElement.classList.add('sent');
-            } else {
-                messageElement.classList.add('received');
-            }
-            
-            messagesContainer.appendChild(messageElement);
+    // ===== Join a room (Callee) =====
+    btnJoin.onclick = async () => {
+      await ensureMedia();
+      const id = roomInput.value.trim();
+      if (!id){
+        alert('Enter the Room ID shared by the creator.');
+        return;
+      }
+
+      roomRef = db.collection('rooms').doc(id);
+      const roomSnap = await roomRef.get();
+      if (!roomSnap.exists){
+        alert('Room not found');
+        return;
+      }
+
+      pc = new RTCPeerConnection(rtcConfig);
+      trackState();
+      registerLocalTracks();
+      createRemoteStream();
+
+      // ICE candidates (callee)
+      calleeCandidates = roomRef.collection('calleeCandidates');
+      pc.addEventListener('icecandidate', event => {
+        if (event.candidate) calleeCandidates.add(event.candidate.toJSON());
+      });
+
+      // Apply remote offer
+      const offer = roomSnap.data().offer;
+      await pc.setRemoteDescription(new RTCSessionDescription(offer));
+
+      // Create & save answer
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      await roomRef.set({ answer: { type: answer.type, sdp: answer.sdp } }, { merge: true });
+      log('Answer created and saved');
+
+      // Listen for caller ICE candidates
+      roomRef.collection('callerCandidates').onSnapshot(snapshot => {
+        snapshot.docChanges().forEach(change => {
+          if (change.type === 'added') {
+            const candidate = new RTCIceCandidate(change.doc.data());
+            pc.addIceCandidate(candidate);
+          }
+        });
+      });
+    };
+
+    // ===== Hang up & cleanup =====
+    btnHangup.onclick = async () => {
+      try { await hangUp(); } catch(e) { log('Hangup error: '+e.message); }
+    };
+
+    async function hangUp(){
+      if (pc) {
+        pc.getSenders().forEach(s => { try { s.track && s.track.stop(); } catch{} });
+        pc.getReceivers().forEach(r => { try { r.track && r.track.stop(); } catch{} });
+        pc.close();
+        pc = null;
+      }
+      if (localStream) { localStream.getTracks().forEach(t=>t.stop()); localStream = null; }
+      if (remoteStream) { remoteStream.getTracks().forEach(t=>t.stop()); remoteStream = null; }
+      localVideo.srcObject = null; remoteVideo.srcObject = null;
+
+      // Delete Firestore room & candidates (best‑effort)
+      if (roomRef){
+        const c1 = roomRef.collection('callerCandidates');
+        const c2 = roomRef.collection('calleeCandidates');
+        await deleteCollection(c1);
+        await deleteCollection(c2);
+        await roomRef.delete().catch(()=>{});
+        log('Room deleted');
+      }
+      setStatus('Idle.');
+    }
+
+    async function deleteCollection(colRef){
+      const snap = await colRef.get();
+      const batch = db.batch();
+      snap.forEach(doc => batch.delete(doc.ref));
+      return batch.commit();
+    }
+
+    // ===== Helpers =====
+    async function ensureMedia(){
+      if (localStream) return;
+      await btnStart.onclick();
+    }
+
+    function registerLocalTracks(){
+      localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+      log('Local tracks added to RTCPeerConnection');
+    }
+
+    function createRemoteStream(){
+      remoteStream = new MediaStream();
+      remoteVideo.srcObject = remoteStream;
+      pc.addEventListener('track', e => {
+        e.streams[0].getTracks().forEach(t => remoteStream.addTrack(t));
+      });
+    }
+
+    function trackState(){
+      pc.addEventListener('connectionstatechange', () => {
+        const st = pc.connectionState;
+        setDot('rtcDot', st === 'connected');
+        setStatus('RTC state: ' + st);
+      });
+      pc.addEventListener('iceconnectionstatechange', () => {
+        log('ICE state: ' + pc.iceConnectionState);
+      });
+    }
+
+    function setStatus(txt){ statusBox.textContent = txt; }
+
+    // Mute/Unmute
+    btnMute.onclick = () => {
+      if (!localStream) return;
+      isMuted = !isMuted;
+      localStream.getAudioTracks().forEach(t => t.enabled = !isMuted);
+      btnMute.textContent = isMuted ? 'Unmute' : 'Mute';
+    };
+
+    // Hide/Show video
+    btnHide.onclick = () => {
+      if (!localStream) return;
+      isHidden = !isHidden;
+      localStream.getVideoTracks().forEach(t => t.enabled = !isHidden);
+      btnHide.textContent = isHidden ? 'Show' : 'Hide';
+    };
+
+    // Warn if leaving without hangup
+    window.addEventListener('beforeunload', () => { if (pc) pc.close(); });
+
+    // ===== Firestore test ping (for status pill) =====
+    (async function(){
+      try {
+        await db.enableNetwork();
+        setDot('dbDot', true);
+      } catch(e){ setDot('dbDot', false); }
+    })();
+  </script>
+
+  <!-- ===== Setup Notes (read-only) ===== -->
+  <!--
+  HOW TO USE (Free):
+  1) Go to https://console.firebase.google.com → Add project (Spark/free plan).
+  2) In Build → Firestore Database → Create database (Start in test mode for quick demo). 
+     ⚠ Test mode is PUBLIC for 30 days; later switch to secure rules.
+  3) Project settings → General → Your apps → Web → Register app → Copy the config and PASTE above.
+  4) Save this file as index.html and open it on two devices/browsers.
+     - Click Start Camera on both.
+     - On one side click Create Room (it shows a Room ID). Share that ID.
+     - On the other side paste the Room ID and click Join Room.
+  5) You should see your live P2P video. Firestore only carries signaling texts.
+
+  Works on localhost without HTTPS. For remote hosting, use HTTPS (GitHub Pages, Netlify, Vercel — all free).
+
+  Minimal secure Firestore rules (after testing):
+  rules_version = '2';
+  service cloud.firestore {
+    match /databases/{database}/documents {
+      match /rooms/{roomId} {
+        allow create: if true; // or restrict with auth
+        allow read, update, delete: if request.time < resource.data.created + duration.value(1, 'hour');
+        match /{document=**} {
+          allow read, write: if request.time < getAfter(path('/databases/$(database)/documents/rooms/$(roomId)')).data.created + duration.value(1, 'hour');
         }
-    </script>
+      }
+    }
+  }
+  (For real apps, add proper auth rules.)
+
+  Troubleshooting:
+  - If camera fails: check browser permissions.
+  - If remote video is black: both sides must click Start Camera first.
+  - Corporate/Wi‑Fi NAT may block direct P2P; then add a TURN server (paid) in rtcConfig.
+  - Spark plan quotas are fine for signaling (tiny reads/writes), not for media.
+  -->
 </body>
-</html>d
+</html>
