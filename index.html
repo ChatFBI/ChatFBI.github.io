@@ -1,335 +1,710 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Free WebRTC Live Video with Firestore Signaling</title>
-  <link rel="icon" href="data:,">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LuminaChat</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    /* same styles as before */
     :root {
-      --bg: #0b1020; --card:#141a2f; --ink:#e6e9f2; --muted:#98a2b3; --accent:#6ee7ff; --ok:#22c55e; --warn:#f59e0b; --err:#ef4444;
+      --primary: #7E6CCA;
+      --primary-dark: #6A5AAF;
+      --primary-light: #9E8DE9;
+      --secondary: #FF7D50;
+      --secondary-light: #FFA285;
+      --dark: #2D2B3A;
+      --light: #F8F9FC;
+      --grey: #A5A3B3;
+      --grey-light: #E5E4EB;
+      --success: #4CAF50;
+      --error: #F44336;
     }
-    *{box-sizing:border-box;}
-    body{margin:0;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:linear-gradient(180deg,#0b1020,#0e1630 40%,#0b1020);color:var(--ink);min-height:100svh;}
-    header{padding:18px 20px;border-bottom:1px solid #24304d;background:rgba(20,26,47,.7);backdrop-filter:saturate(120%) blur(6px);position:sticky;top:0;z-index:5}
-    .wrap{max-width:1100px;margin:0 auto;padding:18px;}
-    .grid{display:grid;gap:16px}
-    .cols{grid-template-columns:1.2fr .8fr}
-    .card{background:var(--card);border:1px solid #1f2744;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
-    .pad{padding:16px}
-    h1{margin:0;font-size:clamp(18px,2.2vw,24px);font-weight:700;letter-spacing:.2px}
-    h2{margin:0 0 10px;font-size:16px;color:var(--muted);font-weight:600}
-    label{display:block;margin:12px 0 6px;font-size:13px;color:var(--muted)}
-    input,button,textarea{font:inherit}
-    input[type=text]{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2b365a;background:#0e1429;color:var(--ink)}
-    button{cursor:pointer;border:1px solid #2b365a;background:#0e1429;color:var(--ink);padding:10px 14px;border-radius:12px;transition:.15s}
-    button:hover{border-color:#3a4979;transform:translateY(-1px)}
-    button.primary{background:linear-gradient(180deg,#0ea5e9,#2563eb);border-color:transparent}
-    button.danger{background:linear-gradient(180deg,#ef4444,#b91c1c);border-color:transparent}
-    .row{display:flex;gap:10px;flex-wrap:wrap}
-    .pill{display:inline-flex;align-items:center;gap:8px;padding:8px 10px;border-radius:999px;background:#0e1429;border:1px solid #233058}
-    .pill .dot{width:9px;height:9px;border-radius:999px;background:#64748b}
-    .dot.ok{background:var(--ok)}
-    .dot.warn{background:var(--warn)}
-    .dot.err{background:var(--err)}
-    .videos{display:grid;gap:12px;grid-template-columns:1fr 1fr}
-    video{width:100%;background:#000;border-radius:14px;border:1px solid #1a2240;aspect-ratio:16/9}
-    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:12px;white-space:pre-wrap;word-break:break-word}
-    .muted{color:var(--muted)}
-    .small{font-size:12px}
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Poppins', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .main-container {
+      width: 100%;
+      max-width: 1200px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    .container {
+      width: 100%;
+      max-width: 420px;
+      overflow: hidden;
+      border-radius: 24px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+      transition: all 0.3s ease;
+    }
+    
+    /* Responsive adjustments */
+    @media (min-width: 1024px) {
+      .container {
+        max-width: 900px;
+        display: flex;
+        height: 600px;
+      }
+      
+      .login-container, .chat-container {
+        flex: 1;
+        border-radius: 24px 0 0 24px;
+      }
+      
+      .chat-container {
+        border-radius: 0 24px 24px 0;
+        display: none;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      body {
+        padding: 0;
+      }
+      
+      .container {
+        border-radius: 0;
+        height: 100vh;
+        max-width: 100%;
+      }
+      
+      .login-container, .chat-container {
+        border-radius: 0;
+        height: 100%;
+      }
+    }
+    
+    /* Login Screen */
+    .login-container {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      padding: 35px 30px;
+      border-radius: 24px;
+      position: relative;
+      overflow: hidden;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    
+    .login-container::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(45deg, transparent, rgba(126, 108, 202, 0.1), transparent);
+      transform: rotate(45deg);
+      animation: shimmer 8s infinite linear;
+      z-index: 0;
+    }
+    
+    .app-logo {
+      text-align: center;
+      margin-bottom: 30px;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .app-logo i {
+      font-size: 48px;
+      color: var(--primary);
+      background: linear-gradient(135deg, var(--primary-light), var(--primary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      padding: 15px;
+      border-radius: 50%;
+      background-color: rgba(126, 108, 202, 0.1);
+    }
+    
+    .app-logo h1 {
+      font-size: 28px;
+      margin-top: 15px;
+      color: var(--dark);
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+    
+    .app-logo p {
+      font-size: 14px;
+      color: var(--grey);
+      margin-top: 5px;
+      font-weight: 300;
+    }
+    
+    .input-group {
+      margin-bottom: 22px;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .input-group i {
+      position: absolute;
+      left: 18px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--primary);
+      font-size: 18px;
+    }
+    
+    .input-group input {
+      width: 100%;
+      padding: 16px 20px 16px 50px;
+      border: 2px solid var(--grey-light);
+      border-radius: 16px;
+      font-size: 16px;
+      transition: all 0.3s;
+      background: rgba(255, 255, 255, 0.8);
+      color: var(--dark);
+      font-weight: 500;
+    }
+    
+    .input-group input:focus {
+      border-color: var(--primary);
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(126, 108, 202, 0.2);
+    }
+    
+    .btn {
+      width: 100%;
+      padding: 17px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: white;
+      border: none;
+      border-radius: 16px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      position: relative;
+      z-index: 1;
+      box-shadow: 0 4px 15px rgba(126, 108, 202, 0.3);
+    }
+    
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(126, 108, 202, 0.4);
+    }
+    
+    .btn:active {
+      transform: translateY(0);
+    }
+    
+    .error-message {
+      color: var(--error);
+      text-align: center;
+      margin-top: 18px;
+      font-size: 14px;
+      min-height: 20px;
+      font-weight: 500;
+      position: relative;
+      z-index: 1;
+    }
+    
+    /* Chat Screen */
+    .chat-container {
+      display: none;
+      flex-direction: column;
+      height: 700px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    @media (max-height: 700px) {
+      .chat-container {
+        height: 100vh;
+      }
+    }
+    
+    .chat-container::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%237e6cca' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+      z-index: 0;
+    }
+    
+    .chat-header {
+      padding: 22px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: relative;
+      z-index: 1;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    
+    .user-info {
+      display: flex;
+      align-items: center;
+    }
+    
+    .user-avatar {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--secondary), var(--secondary-light));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      margin-right: 14px;
+      font-size: 18px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .chat-title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+    
+    .logout-btn {
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: white;
+      padding: 10px 14px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .logout-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: rotate(5deg);
+    }
+    
+    .messages-container {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      background: rgba(248, 249, 252, 0.7);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      z-index: 1;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    .message {
+      max-width: 80%;
+      margin-bottom: 18px;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .message.sent {
+      margin-left: auto;
+      align-items: flex-end;
+    }
+    
+    .message.received {
+      margin-right: auto;
+    }
+    
+    .message-bubble {
+      padding: 14px 18px;
+      border-radius: 20px;
+      position: relative;
+      word-break: break-word;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      line-height: 1.5;
+    }
+    
+    .message.sent .message-bubble {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: white;
+      border-bottom-right-radius: 6px;
+    }
+    
+    .message.received .message-bubble {
+      background: white;
+      color: var(--dark);
+      border-bottom-left-radius: 6px;
+      border: 1px solid var(--grey-light);
+    }
+    
+    .message-sender {
+      font-size: 12px;
+      margin-bottom: 6px;
+      color: var(--grey);
+      padding-left: 8px;
+      font-weight: 500;
+    }
+    
+    .input-container {
+      display: flex;
+      padding: 20px;
+      background: white;
+      border-top: 1px solid var(--grey-light);
+      position: relative;
+      z-index: 1;
+    }
+    
+    .message-input {
+      flex: 1;
+      padding: 16px 20px;
+      border: 2px solid var(--grey-light);
+      border-radius: 16px;
+      font-size: 16px;
+      margin-right: 12px;
+      background: rgba(248, 249, 252, 0.7);
+      transition: all 0.3s;
+      font-weight: 500;
+    }
+    
+    /* Prevent zoom on iOS input focus */
+    @media screen and (max-width: 767px) {
+      .message-input {
+        font-size: 16px;
+      }
+    }
+    
+    .message-input:focus {
+      border-color: var(--primary);
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(126, 108, 202, 0.2);
+    }
+    
+    .send-btn {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: white;
+      border: none;
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(126, 108, 202, 0.3);
+    }
+    
+    .send-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(126, 108, 202, 0.4);
+    }
+    
+    .send-btn:active {
+      transform: translateY(0);
+    }
+    
+    .send-btn:disabled {
+      background: var(--grey-light);
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    
+    /* Welcome message */
+    .welcome-message {
+      text-align: center;
+      padding: 30px 20px;
+      color: var(--grey);
+      font-style: italic;
+      font-weight: 300;
+      background: rgba(255, 255, 255, 0.5);
+      border-radius: 16px;
+      margin: 20px;
+    }
+    
+    /* Animations */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    @keyframes shimmer {
+      0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+      100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+    }
+    
+    .message {
+      animation: fadeIn 0.4s ease;
+    }
+    
+    /* Scrollbar styling */
+    .messages-container::-webkit-scrollbar {
+      width: 8px;
+    }
+    
+    .messages-container::-webkit-scrollbar-track {
+      background: rgba(241, 241, 241, 0.5);
+      border-radius: 4px;
+    }
+    
+    .messages-container::-webkit-scrollbar-thumb {
+      background: var(--primary);
+      border-radius: 4px;
+    }
+    
+    /* Mobile optimizations */
+    @media (max-width: 480px) {
+      .message {
+        max-width: 85%;
+      }
+      
+      .message-bubble {
+        padding: 12px 16px;
+      }
+      
+      .chat-header {
+        padding: 16px;
+      }
+      
+      .user-avatar {
+        width: 40px;
+        height: 40px;
+        font-size: 16px;
+      }
+      
+      .messages-container {
+        padding: 16px;
+      }
+      
+      .input-container {
+        padding: 16px;
+      }
+      
+      .send-btn {
+        width: 50px;
+        height: 50px;
+      }
+    }
   </style>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 </head>
 <body>
-  <header>
-    <div class="wrap row" style="justify-content:space-between;align-items:center">
-      <h1>WebRTC Live Video (Peer‑to‑Peer) — Free Signaling via Firebase Firestore</h1>
-      <div class="row small muted">
-        <span class="pill"><span class="dot" id="camDot"></span> Camera</span>
-        <span class="pill"><span class="dot" id="micDot"></span> Mic</span>
-        <span class="pill"><span class="dot" id="rtcDot"></span> WebRTC</span>
-        <span class="pill"><span class="dot" id="dbDot"></span> Firestore</span>
+
+<div class="main-container">
+  <div class="container">
+    <div class="login-container" id="loginBox">
+      <div class="app-logo">
+        <i class="fas fa-comments"></i>
+        <h1>LuminaChat</h1>
+        <p>Secure messaging for you</p>
+      </div>
+      
+      <div class="input-group">
+        <i class="fas fa-user"></i>
+        <input type="text" id="username" placeholder="Your Username">
+      </div>
+      
+      <div class="input-group">
+        <i class="fas fa-lock"></i>
+        <input type="password" id="password" placeholder="Your Password">
+      </div>
+      
+      <div class="input-group">
+        <i class="fas fa-users"></i>
+        <input type="text" id="partner" placeholder="Partner Name">
+      </div>
+      
+      <button class="btn" onclick="login()">
+        <i class="fas fa-paper-plane"></i> Login to Chat
+      </button>
+      <p class="error-message" id="error"></p>
+    </div>
+
+    <div class="chat-container" id="chatBox">
+      <div class="chat-header">
+        <div class="user-info">
+          <div class="user-avatar" id="userAvatar"></div>
+          <div>
+            <div class="chat-title" id="chatTitle"></div>
+          </div>
+        </div>
+        <button class="logout-btn" onclick="logout()"><i class="fas fa-sign-out-alt"></i></button>
+      </div>
+      
+      <div class="messages-container" id="messages">
+        <div class="welcome-message">Your secure conversation starts here</div>
+      </div>
+      
+      <div class="input-container">
+        <input type="text" class="message-input" id="messageInput" placeholder="Type a message..." disabled>
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled>
+          <i class="fas fa-paper-plane"></i>
+        </button>
       </div>
     </div>
-  </header>
-
-  <div class="wrap grid cols">
-    <section class="card pad">
-      <h2>Video</h2>
-      <div class="videos">
-        <div>
-          <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:6px">
-            <strong>Local</strong>
-            <div class="row">
-              <button id="btnStart" class="primary">1) Start Camera</button>
-              <button id="btnMute">Mute</button>
-              <button id="btnHide">Hide</button>
-            </div>
-          </div>
-          <video id="localVideo" playsinline autoplay muted></video>
-        </div>
-        <div>
-          <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:6px">
-            <strong>Remote</strong>
-            <div class="row">
-              <button id="btnHangup" class="danger">Hang Up</button>
-            </div>
-          </div>
-          <video id="remoteVideo" playsinline autoplay></video>
-        </div>
-      </div>
-    </section>
-
-    <aside class="card pad">
-      <h2>Connect</h2>
-      <label>Room ID</label>
-      <div class="row">
-        <input type="text" id="roomId" placeholder="auto‑generated when you Create" />
-        <button id="btnCreate" class="primary">2) Create Room</button>
-        <button id="btnJoin" class="primary">Join Room</button>
-      </div>
-      <p class="small muted">Share the Room ID with the other person. One clicks <em>Create</em>, the other clicks <em>Join</em>.</p>
-
-      <h2 style="margin-top:14px">Logs</h2>
-      <div id="log" class="mono" style="background:#0e1429;border:1px solid #223059;border-radius:12px;padding:10px;height:260px;overflow:auto"></div>
-
-      <h2 style="margin-top:14px">Status</h2>
-      <div class="mono small muted" id="status"></div>
-    </aside>
   </div>
+</div>
 
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+  // Firebase config
+  const firebaseConfig = {
+    apiKey: "AIzaSyCu9JoJ-HSq-NUSY6nz-YWoKbfEg0JGkts",
+    authDomain: "chat-290d7.firebaseapp.com",
+    projectId: "chat-290d7",
+    storageBucket: "chat-290d7.firebasestorage.app",
+    messagingSenderId: "463105434554",
+    appId: "1:463105434554:web:683bfc90c0f37edb217383"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
 
-  <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyCu9JoJ-HSq-NUSY6nz-YWoKbfEg0JGkts",
-      authDomain: "chat-290d7.firebaseapp.com",
-      projectId: "chat-290d7",
-      storageBucket: "chat-290d7.firebasestorage.app",
-      messagingSenderId: "463105434554",
-      appId: "1:463105434554:web:683bfc90c0f37edb217383"
-    };
+  // hard-coded credentials
+  const users = [
+    {username: 'Bhavesh', password: '192837', color: '#7E6CCA'},
+    {username: 'Nilay', password: '1234', color: '#FF7D50'}
+  ];
 
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
+  let currentUser = null;
+  let partnerUser = null;
+  let unsub = null;
 
-    const $ = (q) => document.querySelector(q);
-    const logBox = $('#log');
-    const statusBox = $('#status');
-    function log(msg){
-      const time = new Date().toLocaleTimeString();
-      logBox.textContent += `[${time}] ${msg}\n`;
-      logBox.scrollTop = logBox.scrollHeight;
+  function login(){
+    const uname = document.getElementById('username').value.trim();
+    const pass = document.getElementById('password').value.trim();
+    const partner = document.getElementById('partner').value.trim();
+    const found = users.find(u => u.username.toLowerCase() === uname.toLowerCase() && u.password === pass);
+    
+    if(found && partner){
+      currentUser = found.username; // exact case
+      partnerUser = partner;
+      
+      // Update UI
+      document.getElementById('loginBox').style.display = 'none';
+      document.getElementById('chatBox').style.display = 'flex';
+      document.getElementById('chatTitle').innerText = "Chat with " + partnerUser;
+      document.getElementById('userAvatar').innerText = currentUser.charAt(0);
+      document.getElementById('userAvatar').style.background = found.color;
+      
+      checkSendPermission();
+      loadMessages();
+    } else {
+      document.getElementById('error').innerText = 'Invalid credentials or missing partner name';
     }
-    function setDot(id, ok){
-      const el = document.getElementById(id);
-      el.classList.remove('ok','warn','err');
-      el.classList.add(ok ? 'ok' : 'warn');
-    }
+  }
 
-    let pc;
-    let localStream, remoteStream;
-    let roomRef;
-    let callerCandidates, calleeCandidates;
-    let isMuted = false, isHidden = false;
+  function logout(){
+    if(unsub) unsub();
+    currentUser = null;
+    partnerUser = null;
+    document.getElementById('chatBox').style.display = 'none';
+    document.getElementById('loginBox').style.display = 'flex';
+    // Clear input fields
+    document.getElementById('username').value = '';
+    document.getElementById('password').value = '';
+    document.getElementById('partner').value = '';
+    document.getElementById('error').innerText = '';
+  }
 
-    const rtcConfig = { iceServers: [{ urls: [ 'stun:stun.l.google.com:19302' ] }] };
+  function chatKey(){
+    return [currentUser, partnerUser].sort().join('|');
+  }
 
-    const btnStart = $('#btnStart');
-    const btnCreate = $('#btnCreate');
-    const btnJoin = $('#btnJoin');
-    const btnHangup = $('#btnHangup');
-    const btnMute = $('#btnMute');
-    const btnHide = $('#btnHide');
-    const roomInput = $('#roomId');
-    const localVideo = $('#localVideo');
-    const remoteVideo = $('#remoteVideo');
-
-    btnStart.onclick = async () => {
-      try {
-        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        $('#camDot').classList.add('ok');
-        $('#micDot').classList.add('ok');
-        localVideo.srcObject = localStream;
-        log('Got local media stream');
-      } catch (err){
-        $('#camDot').classList.add('err');
-        $('#micDot').classList.add('err');
-        log('Error getting media: ' + err.message);
-        alert('Could not access camera/microphone: ' + err.message);
-      }
-    };
-
-    btnCreate.onclick = async () => {
-      await ensureMedia();
-      pc = new RTCPeerConnection(rtcConfig);
-      trackState(pc);
-      registerLocalTracks(pc);
-
-      roomRef = await db.collection('rooms').add({ created: firebase.firestore.FieldValue.serverTimestamp() });
-      roomInput.value = roomRef.id;
-      log('Created room: ' + roomRef.id);
-
-      callerCandidates = roomRef.collection('callerCandidates');
-      pc.addEventListener('icecandidate', event => {
-        if (event.candidate) callerCandidates.add(event.candidate.toJSON());
-      });
-
-      createRemoteStream(pc);
-
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      await roomRef.set({ offer: { type: offer.type, sdp: offer.sdp } }, { merge: true });
-      log('Local offer saved to Firestore');
-
-      roomRef.onSnapshot(async snap => {
-        const data = snap.data();
-        if (pc && !pc.currentRemoteDescription && data && data.answer){
-          await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-          log('Remote answer applied');
+  function loadMessages(){
+    if(unsub) unsub();
+    const key = chatKey();
+    const messagesDiv = document.getElementById('messages');
+    messagesDiv.innerHTML = '<div class="welcome-message">Loading messages...</div>';
+    
+    unsub = db.collection('messages').doc(key).collection('items')
+      .orderBy('timestamp')
+      .onSnapshot(snapshot=>{
+        if (snapshot.empty) {
+          messagesDiv.innerHTML = '<div class="welcome-message">No messages yet. Start the conversation!</div>';
+          return;
         }
-      });
-
-      roomRef.collection('calleeCandidates').onSnapshot(snapshot => {
-        snapshot.docChanges().forEach(change => {
-          if (change.type === 'added' && pc) {
-            const candidate = new RTCIceCandidate(change.doc.data());
-            pc.addIceCandidate(candidate);
-          }
+        
+        messagesDiv.innerHTML = '';
+        snapshot.forEach(doc=>{
+          const data = doc.data();
+          const messageDiv = document.createElement('div');
+          messageDiv.className = 'message ' + (data.sender === currentUser ? 'sent' : 'received');
+          
+          messageDiv.innerHTML = `
+            ${data.sender !== currentUser ? `<div class="message-sender">${data.sender}</div>` : ''}
+            <div class="message-bubble">${data.text}</div>
+          `;
+          
+          messagesDiv.appendChild(messageDiv);
         });
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      }, error => {
+        messagesDiv.innerHTML = '<div class="welcome-message" style="color:var(--error)">Error loading messages</div>';
       });
-    };
+  }
 
-    btnJoin.onclick = async () => {
-      await ensureMedia();
-      const id = roomInput.value.trim();
-      if (!id){
-        alert('Enter the Room ID shared by the creator.');
-        return;
-      }
-
-      roomRef = db.collection('rooms').doc(id);
-      const roomSnap = await roomRef.get();
-      if (!roomSnap.exists){
-        alert('Room not found');
-        return;
-      }
-
-      pc = new RTCPeerConnection(rtcConfig);
-      trackState(pc);
-      registerLocalTracks(pc);
-      createRemoteStream(pc);
-
-      calleeCandidates = roomRef.collection('calleeCandidates');
-      pc.addEventListener('icecandidate', event => {
-        if (event.candidate) calleeCandidates.add(event.candidate.toJSON());
-      });
-
-      const offer = roomSnap.data().offer;
-      await pc.setRemoteDescription(new RTCSessionDescription(offer));
-
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      await roomRef.set({ answer: { type: answer.type, sdp: answer.sdp } }, { merge: true });
-      log('Answer created and saved');
-
-      roomRef.collection('callerCandidates').onSnapshot(snapshot => {
-        snapshot.docChanges().forEach(change => {
-          if (change.type === 'added' && pc) {
-            const candidate = new RTCIceCandidate(change.doc.data());
-            pc.addIceCandidate(candidate);
-          }
-        });
-      });
-    };
-
-    btnHangup.onclick = async () => {
-      try { await hangUp(); } catch(e) { log('Hangup error: '+e.message); }
-    };
-
-    async function hangUp(){
-      if (pc) {
-        pc.getSenders().forEach(s => { try { s.track && s.track.stop(); } catch{} });
-        pc.getReceivers().forEach(r => { try { r.track && r.track.stop(); } catch{} });
-        pc.close();
-        pc = null;
-      }
-      if (localStream) { localStream.getTracks().forEach(t=>t.stop()); localStream = null; }
-      if (remoteStream) { remoteStream.getTracks().forEach(t=>t.stop()); remoteStream = null; }
-      localVideo.srcObject = null; remoteVideo.srcObject = null;
-
-      if (roomRef){
-        const c1 = roomRef.collection('callerCandidates');
-        const c2 = roomRef.collection('calleeCandidates');
-        await deleteCollection(c1);
-        await deleteCollection(c2);
-        await roomRef.delete().catch(()=>{});
-        log('Room deleted');
-      }
-      setStatus('Idle.');
+  function checkSendPermission(){
+    const sendBtn = document.getElementById('sendBtn');
+    const input = document.getElementById('messageInput');
+    
+    // Only allow Bhavesh<->Nilay combination
+    if(
+      (currentUser === 'Bhavesh' && partnerUser.toLowerCase() === 'nilay') ||
+      (currentUser === 'Nilay' && partnerUser.toLowerCase() === 'bhavesh')
+    ){
+      sendBtn.disabled = false;
+      input.disabled = false;
+      input.placeholder = "Type a message...";
+    } else {
+      sendBtn.disabled = true;
+      input.disabled = true;
+      input.placeholder = "Chat not available with this user";
     }
+  }
 
-    async function deleteCollection(colRef){
-      const snap = await colRef.get();
-      const batch = db.batch();
-      snap.forEach(doc => batch.delete(doc.ref));
-      return batch.commit();
+  async function sendMessage(){
+    const input = document.getElementById('messageInput');
+    const text = input.value.trim();
+    
+    if(!text) return;
+    
+    const key = chatKey();
+    const ref = db.collection('messages').doc(key).collection('items');
+    
+    // Add message to Firestore
+    await ref.add({
+      sender: currentUser,
+      text: text,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    
+    // Clear input
+    input.value = '';
+  }
+  
+  // Allow sending message with Enter key
+  document.getElementById('messageInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter' && !document.getElementById('sendBtn').disabled) {
+      sendMessage();
     }
+  });
+</script>
 
-    async function ensureMedia(){
-      if (localStream) return;
-      await btnStart.onclick();
-    }
-
-    function registerLocalTracks(pc){
-      localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-      log('Local tracks added to RTCPeerConnection');
-    }
-
-    function createRemoteStream(pc){
-      remoteStream = new MediaStream();
-      remoteVideo.srcObject = remoteStream;
-      pc.addEventListener('track', e => {
-        e.streams[0].getTracks().forEach(t => remoteStream.addTrack(t));
-      });
-    }
-
-    function trackState(pc){
-      pc.addEventListener('connectionstatechange', (e) => {
-        const st = e.target.connectionState;
-        setDot('rtcDot', st === 'connected');
-        setStatus('RTC state: ' + st);
-      });
-      pc.addEventListener('iceconnectionstatechange', () => {
-        if(pc) log('ICE state: ' + pc.iceConnectionState);
-      });
-    }
-
-    function setStatus(txt){ statusBox.textContent = txt; }
-
-    btnMute.onclick = () => {
-      if (!localStream) return;
-      isMuted = !isMuted;
-      localStream.getAudioTracks().forEach(t => t.enabled = !isMuted);
-      btnMute.textContent = isMuted ? 'Unmute' : 'Mute';
-    };
-
-    btnHide.onclick = () => {
-      if (!localStream) return;
-      isHidden = !isHidden;
-      localStream.getVideoTracks().forEach(t => t.enabled = !isHidden);
-      btnHide.textContent = isHidden ? 'Show' : 'Hide';
-    };
-
-    window.addEventListener('beforeunload', () => { if (pc) pc.close(); });
-
-    (async function(){
-      try {
-        await db.enableNetwork();
-        setDot('dbDot', true);
-      } catch(e){ setDot('dbDot', false); }
-    })();
-  </script>
 </body>
 </html>
